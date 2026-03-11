@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PixiJS • grid animation preview</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #1e1e2f;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 16px;
+        }
+        .app-container {
+            display: flex;
+            background: #2d2d3a;
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow: 0 20px 30px rgba(0,0,0,0.6);
+            gap: 24px;
+            flex-wrap: wrap;
+            backdrop-filter: blur(2px);
+        }
+        canvas {
+            display: block;
+            border-radius: 20px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 0 10px 20px rgba(0,0,0,0.5);
+        }
+        .controls {
+            width: 280px;
+            background: #23232e;
+            border-radius: 20px;
+            padding: 20px 18px;
+            color: #f0eef7;
+            box-shadow: inset 0 1px 2px rgba(255,255,255,0.05), 0 10px 20px rgba(0,0,0,0.4);
+            border: 1px solid #3a3a4b;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .control-row label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #b9b9d6;
+            letter-spacing: 0.3px;
+        }
+        .control-row input, .control-row select {
+            background: #16161e;
+            border: 1px solid #3f3f55;
+            border-radius: 40px;
+            padding: 8px 14px;
+            width: 130px;
+            color: white;
+            font-weight: 500;
+            font-size: 0.9rem;
+            outline: none;
+            transition: 0.15s;
+            text-align: right;
+        }
+        .control-row input[type=number] {
+            -moz-appearance: textfield;
+        }
+        .control-row input:focus, .control-row select:focus {
+            border-color: #9f7aea;
+            box-shadow: 0 0 0 2px #4c3c6e;
+        }
+        .control-row select {
+            background: #16161e;
+            cursor: pointer;
+        }
+        .title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #ddd6fe;
+            border-left: 5px solid #b78aff;
+            padding-left: 14px;
+            letter-spacing: -0.2px;
+        }
+        .trail-hint {
+            font-size: 0.75rem;
+            color: #8d8db0;
+            margin-top: 4px;
+            text-align: right;
+        }
+        hr {
+            border: none;
+            height: 1px;
+            background: #3a3a4f;
+            margin: 8px 0;
+        }
+        .value-badge {
+            background: #0e0e14;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            color: #c5b4ff;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- Pixi canvas will be inserted here -->
+    <div id="pixi-stage" style="width: 1280px; height: 1024px; border-radius: 20px; overflow: hidden; background: #0c0c14;"></div>
+
+    <!-- Right side controls -->
+    <div class="controls">
+        <div class="title">🐂 BP GRID ANIMATOR</div>
+        <div class="control-group">
+            <div class="control-row">
+                <label>⬜ rect width</label>
+                <input type="number" id="rectWidth" min="4" max="220" value="220" step="1">
+            </div>
+            <div class="control-row">
+                <label>⬜ rect height</label>
+                <input type="number" id="rectHeight" min="4" max="220" value="220" step="1">
+            </div>
+            <div class="control-row">
+                <label>🔲 columns (W)</label>
+                <input type="number" id="gridCols" min="1" max="5" value="5" step="1">
+            </div>
+            <div class="control-row">
+                <label>🔲 rows (H)</label>
+                <input type="number" id="gridRows" min="1" max="5" value="3" step="1">
+            </div>
+        </div>
+        <hr>
+        <div class="control-group">
+            <div class="control-row">
+                <label>🌀 animation mode</label>
+                <select id="animMode">
+                    <option value="0" selected>border</option>
+                    <option value="1">middle</option>
+                </select>
+            </div>
+            <div class="control-row">
+                <label>✨ trail count</label>
+                <input disabled type="number" id="trailCount" min="1" max="1024" value="256" step="1">
+            </div>
+            <div class="trail-hint">(256)</div>
+            <div class="control-row">
+                <label>🎨 shape</label>
+                <select id="animShape">
+                    <option value="0" selected>✨ sparks</option>
+                    <option value="1">💓 heart</option>
+                </select>
+            </div>
+            <div class="control-row">
+                <label>💰 paylines</label>
+                <select id="payLinesSelector">
+                    <option value="0" selected>[1,1,1,1,1]</option>
+                    <option value="1">[2,2,2,2,2]</option>
+                    <option value="2">[0,0,0,0,0]</option>
+                    <option value="3">[0,1,2,1,0]</option>
+                    <option value="4">[2,1,0,1,2]</option>
+                    <option value="5">[2,1,0,0,0]</option>
+                    <option value="6">[0,1,2,2,2]</option>
+                    <option value="7">[2,2,2,1,0]</option>
+                    <option value="8">[0,0,0,1,2]</option>
+                    <option value="9">[1,1,1,2,2]</option>
+                </select>
+            </div>
+        </div>
+        <hr>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: space-between;">
+        </div>
+    </div>
+</div>
+
+<!-- PixiJS library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.3/pixi.min.js" integrity="sha512-o3fAFcbCbTTJRFRNx4vByRZVtdKYF9uklctNjDXrN1JjT00rJxCCyNJSDi35rPBEqzWvYplcHLlEmyW34Ado8A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script type="module" src="main.mjs"></script>
+<!--<script>
+    (async function() {
+        // --- PIXI setup ---
+        const app = new PIXI.Application({
+            width: 1280,
+            height: 1024,
+            backgroundColor: 0x0c0c14,
+            antialias: true,
+            resolution: 1,
+            autoDensity: true
+        });
+        document.getElementById('pixi-stage').appendChild(app.view);
+
+        // main container for the grid
+        const gridContainer = new PIXI.Container();
+        app.stage.addChild(gridContainer);
+
+        // graphics object that we will redraw every frame
+        const gridGraphics = new PIXI.Graphics();
+        gridContainer.addChild(gridGraphics);
+
+        // --- state
+        const xMargin = 20, yMargin = 20;
+
+        let currentState = {
+            rectWidth: 220,
+            rectHeight: 220,
+            cols: 5,
+            rows: 4,
+            mode: '0',
+            trailCount: 5,
+            shape: '0'
+        };
+
+        let texture;
+
+        let textures = await Promise.all([
+            PIXI.Assets.load('brillo1.png'),
+            PIXI.Assets.load('brillo2.png'),
+            PIXI.Assets.load('brillo3.png'),
+        ]);
+
+        let path = [];
+        let indexMap = [];
+        let pathLength = 0;
+
+
+
+        function drawGrid() {
+
+            gridGraphics.clear();
+
+            const { rectWidth, rectHeight, cols, rows } = currentState;
+
+            let fillColor = 0x2a2a38;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const x = (c * rectWidth) + xMargin;
+                    const y = (r * rectHeight) + yMargin;
+
+                    // draw rectangle with thin stroke
+                    gridGraphics.beginFill(fillColor);
+                    gridGraphics.lineStyle(1, 0x55556b, 0.6);
+                    gridGraphics.drawRect(x, y, rectWidth-1, rectHeight-1); // -1 to see stroke between cells
+                    gridGraphics.endFill();
+                }
+            }
+        }
+        
+
+        // --- connect HTML inputs to state
+        const rectWidthInput = document.getElementById('rectWidth');
+        const rectHeightInput = document.getElementById('rectHeight');
+        const colsInput = document.getElementById('gridCols');
+        const rowsInput = document.getElementById('gridRows');
+        const modeSelect = document.getElementById('animMode');
+        const trailInput = document.getElementById('trailCount');
+        const shapeSelect = document.getElementById('animShape');
+
+
+        async function updateStateFromInputs() {
+            currentState.rectWidth = parseInt(rectWidthInput.value, 10) || 40;
+            currentState.rectHeight = parseInt(rectHeightInput.value, 10) || 40;
+            currentState.cols = parseInt(colsInput.value, 10) || 8;
+            currentState.rows = parseInt(rowsInput.value, 10) || 8;
+            currentState.mode = modeSelect.value;
+            currentState.trailCount = parseInt(trailInput.value, 10) || 5;
+            currentState.shape = shapeSelect.value;
+
+            // clamp trail to 1..1024
+            if (currentState.trailCount < 1) currentState.trailCount = 1;
+            if (currentState.trailCount > 1024) currentState.trailCount = 1024;
+            trailInput.value = currentState.trailCount;
+            await stateChanged();
+        }
+
+        // initial rebuild
+        await updateStateFromInputs();
+
+        // event listeners
+        rectWidthInput.addEventListener('input', updateStateFromInputs);
+        rectHeightInput.addEventListener('input', updateStateFromInputs);
+        colsInput.addEventListener('input', updateStateFromInputs);
+        rowsInput.addEventListener('input', updateStateFromInputs);
+        modeSelect.addEventListener('change', updateStateFromInputs);
+        trailInput.addEventListener('input', updateStateFromInputs);
+        shapeSelect.addEventListener('change', updateStateFromInputs);
+
+        // --- animation loop ---
+        let lastTimestamp = performance.now();
+        const SPEED_FACTOR = 0.18; // seconds per step (lower = faster)
+
+        // add extra update to reset any glitch
+        function refreshAfterChange() {
+            // just forcing rebuildPath already done; no extra needed
+        }
+
+        // also update when inputs change (clamp via state)
+        trailInput.addEventListener('blur', function() {
+            let val = parseInt(this.value, 10);
+            if (isNaN(val)) val = 5;
+            val = Math.min(1024, Math.max(1, val));
+            this.value = val;
+            updateStateFromInputs();
+        });
+
+        // ensure numeric fields are within reasonable range
+        [rectWidthInput, rectHeightInput, colsInput, rowsInput].forEach(inp => {
+            inp.addEventListener('blur', async function() {
+                let val = parseInt(this.value, 10);
+                if (isNaN(val) || val < 1) val = (this===rectWidthInput||this===rectHeightInput) ? 20 : 4;
+                if (this === rectWidthInput || this === rectHeightInput) {
+                    if (val > 220) val = 220;
+                } else {
+                    if (val > 60) val = 60;  // avoid crazy huge grids (performance still fine)
+                }
+                this.value = val;
+                await updateStateFromInputs();
+            });
+        });
+
+        // initial draw call not needed, tick will run.
+        // but to show something before first tick, we can call tick once manually? nah.
+
+        // --- handle window resize (just keep 600x600) ---
+        // also nice to recenter container if needed
+        gridContainer.x = 0;
+        gridContainer.y = 0;
+
+        // update cell count display on any change (already in rebuildPath)
+        // Add extra safety: rebuild if any weirdness
+        window.addEventListener('load', async () => {
+            await updateStateFromInputs();
+        });
+
+        let elapsed = 0;
+
+        let particleContainer = new PIXI.ParticleContainer();
+
+        let animationHead = new PIXI.Sprite(texture);
+
+        const baseScale = 0.18;
+        animationHead.anchor.set(0.5);
+        animationHead.blendMode = PIXI.BLEND_MODES.ADD;
+        animationHead.scale.set(baseScale);
+        animationHead.position.set(xMargin,yMargin);
+
+        particleContainer.addChild(animationHead);
+
+        app.stage.addChild(particleContainer);
+
+        async function stateChanged() {
+
+            drawGrid();
+
+            texture = textures[currentState.shape];
+
+        }
+
+        await stateChanged();
+
+        app.ticker.add((delta) => {
+
+            elapsed += delta;
+
+            //particleContainer.visible = (elapsed <= 100);
+            //if (particleContainer.visible) particleContainer.visible = false;
+            //animationHead.position.set(xMargin, yMargin);
+
+            // get current time in seconds
+            const now = performance.now() / 1000; // seconds
+
+            
+        });
+
+    })();
+</script>-->
+</body>
+</html>
